@@ -1,194 +1,309 @@
-<script type="text/javascript">
-    var gk_isXlsx = false;
-    var gk_xlsxFileLookup = {};
-    var gk_fileData = {};
-    function filledCell(cell) {
-      return cell !== '' && cell != null;
-    }
-    function loadFileData(filename) {
-    if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-        try {
-            var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-            var firstSheetName = workbook.SheetNames[0];
-            var worksheet = workbook.Sheets[firstSheetName];
-
-            // Convert sheet to JSON to filter blank rows
-            var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-            // Filter out blank rows (rows where all cells are empty, null, or undefined)
-            var filteredData = jsonData.filter(row => row.some(filledCell));
-
-            // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-            var headerRowIndex = filteredData.findIndex((row, index) =>
-              row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-            );
-            // Fallback
-            if (headerRowIndex === -1 || headerRowIndex > 25) {
-              headerRowIndex = 0;
-            }
-
-            // Convert filtered JSON back to CSV
-            var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-            csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-            return csv;
-        } catch (e) {
-            console.error(e);
-            return "";
-        }
-    }
-    return gk_fileData[filename] || "";
-    }
-    </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IAPE - Instituto Adventista Pernambucano de Ensino</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-    .fade-in {
-        opacity: 0;
-        transform: translateY(20px);
-        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-    }
-    .fade-in.visible {
-        opacity: 1;
-        transform: translateY(0);
-    }
-    .mosaic img {
-        transition: transform 0.3s ease;
-    }
-    .mosaic img:hover {
-        transform: scale(1.05);
-    }
-</style>
-</head>
-<body class="bg-gray-900 text-white font-sans">
-<!-- Header -->
-<header class="py-8 text-center bg-black">
-    <div class="container mx-auto px-4">
-        <img src="https://via.placeholder.com/150x50/ffffff/000000?text=Logo" alt="Logo Placeholder" class="mx-auto mb-4">
-        <h1 class="text-4xl font-bold fade-in">IAPE - Instituto Adventista Pernambucano de Ensino</h1>
-    </div>
-</header>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAPE Arquitetura</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluindo SheetJS para suportar leitura de XLSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* Custom animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bgPulse {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 1s ease-out forwards;
+        }
+        .hover-scale {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .hover-scale:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+        }
 
-<!-- Corpo: Three-column section -->
-<section class="py-16 bg-gray-800">
-    <div class="container mx-auto px-4">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="text-center fade-in">
-                <img src="https://via.placeholder.com/300x200/cccccc/000000" alt="Column Image 1" class="mx-auto mb-4 rounded">
-                <p class="text-lg">veja e perceba algumas imagens que teremos futuramente e que temos atualmente no nosso IAPE.</p>
-            </div>
-            <div class="text-center fade-in">
-                <img src="https://via.placeholder.com/300x200/cccccc/000000" alt="Column Image 2" class="mx-auto mb-4 rounded">
-                <p class="text-lg">mais um pouco da área de arquitetura do nosso IAPE.</p>
-            </div>
-            <div class="text-center fade-in">
-                <img src="https://via.placeholder.com/300x200/cccccc/000000" alt="Column Image 3" class="mx-auto mb-4 rounded">
-                <p class="text-lg">além do mais, isso é somente um pouco das boas obras que Deus permite que façamos por aqui.</p>
-            </div>
-        </div>
-    </div>
-</section>
+        /* Darker gradient background */
+        body {
+            background: linear-gradient(135deg, #2F2F2F, #1A2A44, #4A2C2A);
+            background-size: 200% 200%;
+            animation: bgPulse 20s ease infinite;
+            min-height: 100vh;
+            position: relative;
+            color: #e5e7eb;
+        }
+        /* Adventist logo as subtle background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('logotipo.png');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 40%;
+            opacity: 0.15;
+            z-index: -1;
+        }
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+        /* Active nav link */
+        .nav-active {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
+        /* Enhanced social icons and WhatsApp button */
+        .social-icon, .whatsapp-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+            transition: transform 0.3s ease, background 0.6s ease;
+        }
+        .social-icon:hover, .whatsapp-button:hover {
+            transform: scale(1.2);
+            background: linear-gradient(255deg, #60a5fa, #3b82f6);
+        }
+        .social-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+        .whatsapp-button {
+            border-radius: 9999px;
+            padding: 0.6666666666666666rem;
+            border: 1.5px solid #ffffff; /* Corrigido: unidade válida */
+        }
+        .whatsapp-button svg {
+            width: 24px;
+            height: auto;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+    <script>
+        // JavaScript for XLSX processing
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
 
-<!-- Old Models Section -->
-<section class="py-16 bg-gray-900">
-    <div class="container mx-auto px-4">
-        <h2 class="text-3xl font-bold text-center mb-8 fade-in">Modelos Antigos</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mosaic">
-            <img src="https://via.placeholder.com/200/aaaaaa/000000?text=Modelo+Antigo+1" alt="Old Model 1" class="w-full h-48 object-cover rounded fade-in">
-            <img src="https://via.placeholder.com/200/aaaaaa/000000?text=Modelo+Antigo+2" alt="Old Model 2" class="w-full h-48 object-cover rounded fade-in">
-            <img src="https://via.placeholder.com/200/aaaaaa/000000?text=Modelo+Antigo+3" alt="Old Model 3" class="w-full h-48 object-cover rounded fade-in">
-            <img src="https://via.placeholder.com/200/aaaaaa/000000?text=Modelo+Antigo+4" alt="Old Model 4" class="w-full h-48 object-cover rounded fade-in">
-        </div>
-    </div>
-</section>
+        function filledCell(cell) {
+            return cell !== '' && cell != null;
+        }
 
-<!-- New Models Section -->
-<section class="py-16 bg-gray-800">
-    <div class="container mx-auto px-4">
-        <h2 class="text-3xl font-bold text-center mb-8 fade-in">Modelos Novos</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mosaic">
-            <img src="https://via.placeholder.com/200/bbbbbb/000000?text=Modelo+Novo+1" alt="New Model 1" class="w-full h-48 object-cover rounded fade-in">
-            <img src="https://via.placeholder.com/200/bbbbbb/000000?text=Modelo+Novo+2" alt="New Model 2" class="w-full h-48 object-cover rounded fade-in">
-            <img src="https://via.placeholder.com/200/bbbbbb/000000?text=Modelo+Novo+3" alt="New Model 3" class="w-full h-48 object-cover rounded fade-in">
-            <img src="https://via.placeholder.com/200/bbbbbb/000000?text=Modelo+Novo+4" alt="New Model 4" class="w-full h-48 object-cover rounded fade-in">
-        </div>
-    </div>
-</section>
+        function loadFileData(filename) {
+            if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+                try {
+                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                    var firstSheetName = workbook.SheetNames[0];
+                    var worksheet = workbook.Sheets[firstSheetName];
 
-<!-- Photo Mosaic -->
-<section class="py-16 bg-gray-900">
-    <div class="container mx-auto px-4">
-        <h2 class="text-3xl font-bold text-center mb-8 fade-in">Galeria de Fotos</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mosaic">
-            <img src="https://www.google.com/url?sa=i&url=https%3A%2F%2Fcatagua.com.br%2Finfraestrutura-de-lazer-do-condominio-barcelona&psig=AOvVaw3fb7VCauio4lTcpEDV3rNY&ust=1749058629480000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCOCyg8Dl1Y0DFQAAAAAdAAAAABAE" alt="Photo 1" class="w-full h-48 object-cover rounded fade-in">
-            <img src="https://www.google.com/imgres?q=colegios%20internos%20adventistas%20residencial&imgurl=https%3A%2F%2Fs2.glbimg.com%2FCc9Ov5O2EXssh6sxuyl-V0gPAvU%3D%2Fs.glbimg.com%2Fjo%2Fg1%2Ff%2Foriginal%2F2016%2F11%2F10%2Fmateria_1.jpg&imgrefurl=https%3A%2F%2Fg1.globo.com%2Fpe%2Fcaruaru-regiao%2Fespecial-publicitario%2Finstituto-adventista-pernambucano-de-ensino%2Fnoticia%2F2016%2F11%2Fmae-eu-quero-ir-pro-internato.html&docid=hDVlrgzVHAXwSM&tbnid=VN3i4uuHYeM9WM&vet=12ahUKEwiQn6vE5dWNAxVAH7kGHc7fFjAQM3oECC0QAA..i&w=620&h=429&hcb=2&ved=2ahUKEwiQn6vE5dWNAxVAH7kGHc7fFjAQM3oECC0QAA" alt="Photo 2" class="w-full h-64 object-cover rounded fade-in">
-            <img src="QUADRA 
+                    // Convert sheet to JSON to filter blank rows
+                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                    // Filter out blank rows
+                    var filteredData = jsonData.filter(row => row.some(filledCell));
 
+                    // Heuristic to find the header row
+                    var headerRowIndex = filteredData.findIndex((row, index) => {
+                        const nextRow = filteredData[index + 1];
+                        return nextRow ? row.filter(filledCell).length >= nextRow.filter(filledCell).length : true;
+                    });
+                    // Fallback
+                    if (headerRowIndex === -1 || headerRowIndex > 25) {
+                        headerRowIndex = 0;
+                    }
 
-https://www.google.com/imgres?q=%20quadras&imgurl=https%3A%2F%2Fwww.sescpr.com.br%2Fwp-content%2Fuploads%2F2019%2F02%2FIMG_20220830_193742-scaled.jpg&imgrefurl=https%3A%2F%2Fwww.sescpr.com.br%2Funidade%2Fsesc-umuarama%2Fespaco%2Fquadra-poliesportiva-coberta-2%2F&docid=5ZMzwEl7rLIymM&tbnid=_NHjFbScSgvgUM&vet=12ahUKEwiW2reB5tWNAxWlHbkGHdNRKRAQM3oFCIABEAA..i&w=2560&h=1916&hcb=2&ved=2ahUKEwiW2reB5tWNAxWlHbkGHdNRKRAQM3oFCIABEAA" alt="Photo 3" class="w-full h-32 object-cover rounded fade-in">
-            <img src="https://www.google.com/imgres?q=futsal%20quadras&imgurl=https%3A%2F%2Fs2-ge.glbimg.com%2FQlmOLUp3BnkP-FMRkusWZB6-7Zk%3D%2F1200x%2Fsmart%2Ffilters%3Acover()%3Astrip_icc()%2Fi.s3.glbimg.com%2Fv1%2FAUTH_bc8228b6673f488aa253bbcb03c80ec5%2Finternal_photos%2Fbs%2F2019%2F1%2Fi%2FHtAbwFRRuO1WxEcI2ODw%2Ffutsal-jec.jpg&imgrefurl=https%3A%2F%2Fge.globo.com%2Fsc%2Fespecial-publicitario%2Ffutsal-joinville-krona%2Ffutsal-joinville%2Fnoticia%2Fa-quadra-de-futsal-saiba-tudo-sobre-o-palco-dos-grandes-classicos-do-salao.ghtml&docid=SwshIH08OxQtAM&tbnid=o_nm1YCxZvSiaM&vet=12ahUKEwiMn9n15tWNAxVKDbkGHedBOMoQM3oECGcQAA..i&w=1200&h=626&hcb=2&ved=2ahUKEwiMn9n15tWNAxVKDbkGHedBOMoQM3oECGcQAA" alt="Photo 4" class="w-full h-48 object-cover rounded fade-in">
-            <img src="*area de lazer*
- https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.construtoraplaneta.com.br%2Fblog%2Farea-de-lazer-completa%2F&psig=AOvVaw1yrsbUSdywPBO2O9ItnKE4&ust=1749060156378000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCPDOqZnr1Y0DFQAAAAAdAAAAABAE" alt="Photo 5" class="w-full h-64 object-cover rounded fade-in">
-            <img src="https://via.placeholder.com/200/cccccc/000000" alt="Photo 6" class="w-full h-32 object-cover rounded fade-in">
-            <img src="https://via.placeholder.com/300x200/cccccc/000000" alt="Photo 7" class="w-full h-48 object-cover rounded fade-in">
-            <img src="https://via.placeholder.com/200x400/cccccc/000000" alt="Photo 8" class="w-full h-64 object-cover rounded fade-in">
-        </div>
-    </div>
-</section>
-
-<!-- Contact Section -->
-<section class="py-16 bg-gray-800">
-    <div class="container mx-auto px-4">
-        <h2 class="text-3xl font-bold text-center mb-8 fade-in">Entre em Contato</h2>
-        <div class="max-w-md mx-auto fade-in">
-            <div>
-                <label for="name" class="block text-lg mb-2">Nome</label>
-                <input type="text" id="name" class="w-full p-2 bg-gray-700 text-white rounded mb-4" placeholder="Seu nome">
-            </div>
-            <div>
-                <label for="message" class="block text-lg mb-2">Mensagem</label>
-                <textarea id="message" class="w-full p-2 bg-gray-700 text-white rounded mb-4" rows="4" placeholder="Sua mensagem"></textarea>
-            </div>
-            <button onclick="sendWhatsApp()" class="bg-gray-300 text-black px-6 py-2 rounded hover:bg-gray-400">Enviar via WhatsApp</button>
-        </div>
-    </div>
-</section>
-
-<!-- Footer -->
-<footer class="py-8 text-center bg-black">
-    <div class="container mx-auto px-4 fade-in">
-        <p class="text-lg">José Keyvison</p>
-        <p class="text-lg">IAPE - Instituto Adventista Pernambucano de Ensino</p>
-        <p class="text-lg">Telefone: (84) 98853-2592</p>
-        <p class="text-lg">BR 232 KM 91, CEP 55.695-000</p>
-    </div>
-</footer>
-
-<script>
-    // Intersection Observer for fade-in animations
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('visible');
+                    // Convert filtered JSON back to CSV
+                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                    return csv;
+                } catch (e) {
+                    console.error('Erro ao processar arquivo XLSX:', e);
+                    return "";
+                }
             }
+            return gk_fileData[filename] || "";
+        }
+
+        // JavaScript for active scrolling navigation
+        document.addEventListener('DOMContentLoaded', () => {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('nav a');
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (scrollY >= sectionTop - 60) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('nav-active');
+                    if (link.getAttribute('href').slice(1) === current) {
+                        link.classList.add('nav-active');
+                    }
+                });
+            });
         });
-    }, { threshold: 0.1 });
+    </script>
+</head>
+<body class="text-gray-100 font-sans">
+    <!-- Header -->
+    <header class="bg-gray-900 shadow-lg py-4 px-2 fixed top-0 w-full h-auto z-20">
+        <div class="container mx-auto px-4 py-2 flex justify-between items-center">
+            <h2 class="text-3xl font-bold text-gray-100">IAPE ARQUITETURA</h2>
+            <nav class="space-x-6">
+                <a href="#home" class="text-blue-400 hover:text-blue-600">Home</a>
+                <a href="#sobre" class="text-blue-400 hover:text-blue-600">Sobre</a>
+                <a href="#modelos" class="text-blue-400 hover:text-blue-600">Modelos</a>
+                <a href="#galeria" class="text-blue-400 hover:text-blue-600">Galeria</a>
+                <a href="#projetos" class="text-blue-400 hover:text-blue-600">Projetos</a>
+                <a href="#contato" class="text-blue-400 hover:text-blue-600">Contato</a>
+            </nav>
+        </div>
+    </header>
 
-    document.querySelectorAll('.fade-in').forEach(element => {
-        observer.observe(element);
-    });
+    <!-- Hero Section -->
+    <section id="home" class="py-32 pb-4 text-center">
+        <div class="container mx-auto px-4 py-16 animate-fadeIn">
+            <h2 class="text-5xl font-extrabold mb-4">IAPE Arquitetura</h2>
+        </div>
+    </section>
 
-    // WhatsApp message function
-    function sendWhatsApp() {
-        const name = document.getElementById('name').value;
-        const message = document.getElementById('message').value;
-        const phoneNumber = '5584988532592';
-        const text = `Olá, meu nome é ${name}. ${message}`;
-        const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`;
-        window.open(url, '_blank');
-    }
-</script>
+    <!-- Sobre Section -->
+    <section id="sobre" class="py-16 bg-gray-800">
+        <div class="container mx-auto px-4">
+            <h2 class="text-blue-600 text-4xl font-bold text-center mb-12 animate-fadeIn">Sobre a IAPE Arquitetura</h2>
+            <div class="flex justify-center">
+                <div class="grid grid-cols-1 md:grid-cols-1 gap-8 max-w-4xl w-full">
+                    <div class="p-6 bg-gray-700 rounded-lg shadow-md hover:bg-gray-600 hover-scale animate-fadeIn">
+                        <h3 class="text-2xl font-semibold mb-4">IAPE Arquitetura</h3>
+                        <p>A IAPE Arquitetura é um projeto dedicado à criação de espaços que harmonizam estética e funcionalidade, com um compromisso profundo com os valores da Rede Adventista. Nosso trabalho foca na elaboração de projetos residenciais e comunitários que atendem às necessidades das pessoas, promovendo ambientes acolhedores e práticos. Cada projeto é cuidadosamente planejado para refletir princípios de simplicidade, beleza e conexão com a comunidade, alinhados à missão de transformar vidas por meio da arquitetura.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modelos Section -->
+    <section id="modelos" class="py-16 bg-gray-900">
+        <div class="container mx-auto px-4">
+            <h2 class="text-blue-600 text-4xl font-bold text-center mb-12 animate-fadeIn">Nossos Modelos</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-gray-800 p-6 rounded-lg shadow-md hover:bg-gray-700 hover-scale animate-fadeIn">
+                    <img src="IAPE.png" alt="Modelo 1" class="w-full h-48 object-cover rounded-md mb-4">
+                    <h3 class="text-xl font-semibold mb-2">Modelo Moderno</h3>
+                    <p>Nosso incrível e completo paìs visto pela parte de cima.</p>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg shadow-md hover:bg-gray-700 hover-scale animate-fadeIn">
+                    <img src="FEMININO.png" alt="Modelo 2" class="w-full h-48 object-cover rounded-md mb-4">
+                    <h3 class="text-xl font-semibold mb-2">Modelo Sustentável</h3>
+                    <p>Soluções ecológicas para construções eficientes e de baixo impacto.</p>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg shadow-md hover:bg-gray-700 hover-scale animate-fadeIn">
+                    <img src="RECEPÇÃO.png" alt="Modelo 3" class="w-full h-48 object-cover rounded-md mb-4">
+                    <h3 class="text-xl font-semibold mb-2">Modelo Clássico</h3>
+                    <p>Designs atemporais que combinam elegância e funcionalidade.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Galeria Section -->
+    <section id="galeria" class="py-16 bg-gray-800">
+        <div class="container mx-auto px-4">
+            <h2 class="text-blue-600 text-4xl font-bold text-center mb-12 animate-fadeIn">Galeria de Fotos</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="hover-scale animate-fadeIn">
+                    <img src="eclass.jpg" alt="Galeria 1" class="w-full h-64 object-cover rounded-md">
+                </div>
+                <div class="hover-scale animate-fadeIn">
+                    <img src="parquinho.jpg" alt="Galeria 2" class="w-full h-64 object-cover rounded-md">
+                </div>
+                <div class="hover-scale animate-fadeIn">
+                    <img src="trainee.jpg" alt="Galeria 3" class="w-full h-64 object-cover rounded-md">
+                </div>
+                <div class="hover-scale animate-fadeIn">
+                    <img src="ENTRADA.png" alt="Galeria 4" class="w-full h-64 object-cover rounded-md">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Projetos Section -->
+    <section id="projetos" class="py-16 bg-gray-900">
+        <div class="container mx-auto px-4">
+            <h2 class="text-blue-600 text-4xl font-bold text-center mb-12 animate-fadeIn">Projetos</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-gray-800 p-6 rounded-lg shadow-md hover:bg-gray-700 hover-scale animate-fadeIn">
+                    <img src="QUa.webp" alt="Projeto 1" class="w-full h-48 object-cover rounded-md mb-4">
+                    <h3 class="text-xl font-semibold mb-2">Projeto Residencial</h3>
+                    <p>Uma casa moderna com design sustentável, projetada para integrar conforto e eficiência energética.</p>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg shadow-md hover:bg-gray-700 hover-scale animate-fadeIn">
+                    <img src="PRAÇA.png" alt="Projeto 2" class="w-full h-48 object-cover rounded-md mb-4">
+                    <h3 class="text-xl font-semibold mb-2">Centro Comunitário</h3>
+                    <p>Um espaço para a comunidade adventista, projetado para promover integração e espiritualidade.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contato Section -->
+    <section id="contato" class="py-16">
+        <div class="container mx-auto px-4 text-center animate-fadeIn">
+            <h2 class="text-blue-600 text-4xl font-bold mb-12">Fale Conosco</h2>
+            <p class="text-xl mb-8"> Isso é somente um poquinho da beleza que Deus nos inspirou a fazer!</p>
+            <div class="max-w-md mx-auto">
+                <input type="text" placeholder="Seu Nome" class="w-full p-3 mb-4 rounded-md text-gray-800">
+                <input type="email" placeholder="Seu Email" class="w-full p-3 mb-4 rounded-md text-gray-800">
+                <textarea placeholder="Sua Mensagem" class="w-full p-3 mb-4 rounded-md text-gray-800" rows="5"></textarea>
+                <a href="https://wa.me/(84) 988532592" target="_blank" class="whatsapp-button text-white hover-scale inline-flex items-center">
+                    <svg class="text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 0C5.373 0 0 5.373 0 12c0 2.134.558 4.135 1.53 5.88L0 24l6.252-1.627A11.963 11.963 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22.08c-1.74 0-3.346-.492-4.746-1.33l-.342-.204-3.708.966.975-3.614-.216-.348A10.12 10.12 0 012.08 12c0-5.52 4.477-10 10-10s10 4.48 10 10-4.477 10.08-10 10.08zm-4.86-6.512c.27-.135 1.596-.786 1.842-.876.246-.09.426-.135.608-.136.182-.001.406.135.58.406.174.27.696.876.852 1.056.156.18.312.202.584.068.27-.135 1.14-.42 2.172-1.338.802-.716 1.344-1.596 1.5-1.872.156-.27.016-.416-.118-.55-.122-.122-.27-.316-.406-.474-.135-.158-.27-.316-.36-.45-.09-.135-.09-.338.024-.474.112-.135 1.11-1.35 1.518-1.842.406-.496.812-.496 1.128-.36.316.135 1.35.678 1.62 1.084.27.406.27 1.62-.068 2.388-.338.766-1.332 2.436-3.228 3.428-.406.225-.812.406-1.218.54-.406.135-.812.09-1.128-.09-.316-.18-1.35-.9-1.62-.9-.27 0-.36.09-.428.27-.068.18-.068.9-.068 1.128 0 .406.156.586.428.678-.27.135-.606.226-1.044.226z"/>
+                    </svg>
+                    Enviar via WhatsApp
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-200 py-8">
+        <div class="container mx-auto px-4 text-center">
+            <p>© 2025 IAPE Arquitetura - Todos os direitos reservados.</p>
+            <p class="mt-2">Desenvolvido por José Keyvison Chagas da Silva Souza</p>
+            <p class="mt-2">Email: <a href="mailto:josekeyvison4@gmail.com" class="text-blue-400 hover:text-blue-600">josekeyvison4@gmail.com</a></p>
+            <div class="flex justify-center space-x-6 mt-4">
+                <a href="https://www.instagram.com/colegioiape/" target="_blank" class="social-icon hover-scale">
+                    <svg class="text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.148 3.227-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.148-4.771-1.691-4.919-4.919-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163C8.741 0 8.332.014 7.052.072 3.668.227 1.981 1.97 1.826 5.354.014 8.332 0 8.741 0 12c0 3.259.014 3.668.072 4.948.155 3.384 1.898 5.071 5.282 5.226 1.28.058 1.689.072 4.948.072s3.668-.014 4.948-.072c3.384-.155 5.071-1.898 5.226-5.282.058-1.28.072-1.689.072-4.948s-.014-3.668-.072-4.948c-.155-3.384-1.898-5.071-5.282-5.226C15.668.014 15.259 0 12 0z"/>
+                        <path d="M12 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zm0 10.162a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 11-2.88 0 1.44 1.44 0 012.88 0z"/>
+                    </svg>
+                </a>
+                <a href="https://wa.me/+5584988532592" target="_blank" class="social-icon hover-scale">
+                    <svg class="text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 0C5.373 0 0 5.373 0 12c0 2.134.558 4.135 1.53 5.88L0 24l6.252-1.627A11.963 11.963 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22.08c-1.74 0-3.346-.492-4.746-1.33l-.342-.204-3.708.966.975-3.614-.216-.348A10.12 10.12 0 012.08 12c0-5.52 4.477-10 10-10s10 4.48 10 10-4.477 10.08-10 10.08zm-4.86-6.512c.27-.135 1.596-.786 1.842-.876.246-.09.426-.135.608-.136.182-.001.406.135.58.406.174.27.696.876.852 1.056.156.18.312.202.584.068.27-.135 1.14-.42 2.172-1.338.802-.716 1.344-1.596 1.5-1.872.156-.27.016-.416-.118-.55-.122-.122-.27-.316-.406-.474-.135-.158-.27-.316-.36-.45-.09-.135-.09-.338.024-.474.112-.135 1.11-1.35 1.518-1.842.406-.496.812-.496 1.128-.36.316.135 1.35.678 1.62 1.084.27.406.27 1.62-.068 2.388-.338.766-1.332 2.436-3.228 3.428-.406.225-.812.406-1.218.54-.406.135-.812.09-1.128-.09-.316-.18-1.35-.9-1.62-.9-.27 0-.36.09-.428.27-.068.18-.068.9-.068 1.128 0 .406.156.586.428.678-.27.135-.606.226-1.044.226z"/>
+                    </svg>
+                </a>
+                <a href="tel:+5584988532592" target="_blank" class="social-icon hover-scale">
+                    <svg class="text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.24 1.02l-2.2 2.2zm3.38-3.8c-.1-.3-.36-.5-.68-.5H6.5c-.41 0-.75.34-.75.75v2.5c0 .41.34.75.75.75s.75-.34.75-.75V8.75h1.75c.41 0 .75-.34.75-.75s-.34-.75-.75-.75zm4 0c-.41 0-.75.34-.75.75v2.5c0 .41.34.75.75.75s.75-.34.75-.75v-2.5c0-.41-.34-.75-.75-.75zm4 0c-.41 0-.75.34-.75.75v2.5c0 .41.34.75.75.75s.75-.34.75-.75v-2.5c0-.41-.34-.75-.75-.75z"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>
